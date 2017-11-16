@@ -1,0 +1,45 @@
+---
+- hosts: test_machine
+  become: yes
+  become_method: sudo
+
+  vars:
+    - homeDir: /home/ubuntu
+    - appDir : app
+    - repo: repo_name
+    - account: github_username
+
+  tasks:
+  - name: Install Packages
+    apt: name={{item}} update_cache=yes state=latest
+    with_items:
+      - build-essential
+      - npm
+      - nodejs-legacy
+      - git
+      - mcrypt
+      - nginx
+      - curl
+
+  - name: Install pm2
+    npm: name=pm2 global=yes production=yes
+
+  - name: Create APP Directory
+    file: path={{homeDir}}/{{appDir}} state=directory
+
+  - name: Clone Public Repository
+    git:
+      repo: https://github.com/{{account}}/{{repo}}.git
+      dest: "{{homeDir}}/{{appDir}}"
+
+  - name: stop node apps
+    command: pm2 delete all
+    become: yes
+    ignore_errors: yes
+
+  - name: Running NPM install
+    npm: path={{homeDir}}/{{appDir}}
+    register: npm_finished
+
+  - name: Start APP
+    command: pm2 start --name "{{repo}}" {{homeDir}}/{{appDir}}/app.js 
